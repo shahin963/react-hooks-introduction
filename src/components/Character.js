@@ -1,85 +1,69 @@
-import React, { Component } from 'react';
-
+import React, {useEffect} from 'react';
+import {useHttp} from "../hooks/http";
 import Summary from './Summary';
 
-class Character extends Component {
-  state = { loadedCharacter: {}, isLoading: false };
+const Character = props => {
 
-  shouldComponentUpdate(nextProps, nextState) {
-    console.log('shouldComponentUpdate');
-    return (
-      nextProps.selectedChar !== this.props.selectedChar ||
-      nextState.loadedCharacter.id !== this.state.loadedCharacter.id ||
-      nextState.isLoading !== this.state.isLoading
-    );
-  }
+    console.log("Rendering....");
 
-  componentDidUpdate(prevProps) {
-    console.log('Component did update');
-    if (prevProps.selectedChar !== this.props.selectedChar) {
-      this.fetchData();
-    }
-  }
+    const [isLoading, fetchedData] = useHttp('https://swapi.co/api/people/' + props.selectedChar, [props.selectedChar]);
 
-  componentDidMount() {
-    this.fetchData();
-  }
-
-  fetchData = () => {
-    console.log(
-      'Sending Http request for new character with id ' +
-        this.props.selectedChar
-    );
-    this.setState({ isLoading: true });
-    fetch('https://swapi.co/api/people/' + this.props.selectedChar)
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('Could not fetch person!');
+    let loadedCharacter = null;
+    if (fetchedData) {
+        loadedCharacter = {
+            id: props.selectedChar,
+            name: fetchedData.name,
+            height: fetchedData.height,
+            colors: {
+                hair: fetchedData.hair_color,
+                skin: fetchedData.skin_color
+            },
+            gender: fetchedData.gender,
+            movieCount: fetchedData.films.length
         }
-        return response.json();
-      })
-      .then(charData => {
-        const loadedCharacter = {
-          id: this.props.selectedChar,
-          name: charData.name,
-          height: charData.height,
-          colors: {
-            hair: charData.hair_color,
-            skin: charData.skin_color
-          },
-          gender: charData.gender,
-          movieCount: charData.films.length
-        };
-        this.setState({ loadedCharacter: loadedCharacter, isLoading: false });
-      })
-      .catch(err => {
-        console.log(err);
-      });
-  };
+    }
 
-  componentWillUnmount() {
-    console.log('Too soon...');
-  }
+    useEffect(() => {
+        console.log("this will run twice, once as\"component did mount\"  and once when the component is destroyed ");
+        return () => {
+            console.log("this will run when component unmounts ")
+        }
+    }, []);
 
-  render() {
     let content = <p>Loading Character...</p>;
 
-    if (!this.state.isLoading && this.state.loadedCharacter.id) {
-      content = (
-        <Summary
-          name={this.state.loadedCharacter.name}
-          gender={this.state.loadedCharacter.gender}
-          height={this.state.loadedCharacter.height}
-          hairColor={this.state.loadedCharacter.colors.hair}
-          skinColor={this.state.loadedCharacter.colors.skin}
-          movieCount={this.state.loadedCharacter.movieCount}
-        />
-      );
-    } else if (!this.state.isLoading && !this.state.loadedCharacter.id) {
-      content = <p>Failed to fetch character.</p>;
+    if (!isLoading && loadedCharacter) {
+        content = (
+            <Summary
+                name={loadedCharacter.name}
+                gender={loadedCharacter.gender}
+                height={loadedCharacter.height}
+                hairColor={loadedCharacter.colors.hair}
+                skinColor={loadedCharacter.colors.skin}
+                movieCount={loadedCharacter.movieCount}
+            />
+        );
+    } else if (!isLoading && !loadedCharacter) {
+        content = <p>Failed to fetch character.</p>;
     }
     return content;
-  }
-}
+};
 
-export default Character;
+
+// shouldComponentUpdate(nextProps, nextState)
+// {
+//     console.log('shouldComponentUpdate');
+//     return (
+//         nextProps.selectedChar !== props.selectedChar ||
+//         nextState.loadedCharacter.id !== loadedCharacter.id ||
+//         nextState.isLoading !== isLoading
+//     );
+// }
+
+//React Memo can be used to replace shouldComponentUpate. it takes a component and a function, that when it return false the component rerenders
+export default React.memo(Character, (prevProps, nextProps) => {
+    //Note this is a redundent code as react already re-renders when the props is changed
+    return (
+        nextProps.selectedChar === prevProps.selectedChar
+    );
+});
